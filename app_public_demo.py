@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import hmac
 import time
 import urllib.error
 import urllib.request
@@ -72,6 +73,8 @@ def init_state() -> None:
         st.session_state.demo_tick = 0
     if "source_key" not in st.session_state:
         st.session_state.source_key = ""
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
 
 
 def append_sample(sample: dict | None) -> None:
@@ -114,6 +117,26 @@ def load_huawei_settings() -> dict:
         "token": read_setting("HUAWEI_IAM_TOKEN", ""),
         "service_id": read_setting("HUAWEI_SERVICE_ID", "Motor"),
     }
+
+
+def check_password() -> bool:
+    expected_password = read_setting("APP_PASSWORD", "")
+    if not expected_password:
+        return True
+    if st.session_state.authenticated:
+        return True
+
+    st.markdown(f"### {zh(r'\u7535\u673a\u72b6\u6001\u76d1\u6d4b\u7cfb\u7edf')}")
+    st.caption(zh(r"\u8bf7\u8f93\u5165\u8bbf\u95ee\u5bc6\u7801\u67e5\u770b\u5b9e\u65f6\u72b6\u6001\u3002"))
+    password = st.text_input(zh(r"\u8bbf\u95ee\u5bc6\u7801"), type="password")
+    if st.button(zh(r"\u767b\u5f55"), use_container_width=True):
+        if hmac.compare_digest(password, expected_password):
+            st.session_state.authenticated = True
+            rerun_page()
+        else:
+            st.error(zh(r"\u5bc6\u7801\u4e0d\u6b63\u786e"))
+
+    return False
 
 
 def read_huawei_shadow_sample(settings: dict) -> tuple[dict | None, str]:
@@ -381,6 +404,9 @@ def main() -> None:
     )
     init_state()
     inject_styles()
+
+    if not check_password():
+        return
 
     settings = load_huawei_settings()
 
